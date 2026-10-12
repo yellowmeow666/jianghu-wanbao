@@ -18,6 +18,8 @@ cp .env.example .env
 
 `.env` 不要提交生产令牌。页面上的「保存连接」只写本机 `localStorage`。
 
-后端未启动时列表显示错误，不会用样例条目冒充已发布内容。状态流转：保存草稿 → 提交待审（`PATCH status=pending`）→ 发布（`POST .../publish`）→ 下架（`POST .../unpublish`）。
+后端未启动时列表和贴吧取帖都显示错误，可以重试，不会用样例条目冒充已发布内容。状态流转：保存草稿 → 提交待审（`PATCH status=pending`）→ 发布（`POST .../publish`）→ 下架（`POST .../unpublish`）。
+
+「贴吧取帖」调用 `POST /api/admin/ingest/tieba/by-url`、`/scan`、`/import`。扫描字段是 `bar`。扫描只展示候选；入库成功或 `ALREADY_EXISTS` 后进入草稿编辑。
 
 从 Vite 页面直接请求 `http://localhost:3000` 是跨源请求，后端需要允许页面来源，并允许请求头 `X-Admin-Token`。

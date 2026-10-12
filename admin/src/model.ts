@@ -6,11 +6,15 @@ export class ApiError extends Error {
   code: string
   statusCode: number
 
-  constructor(message: string, code: string, statusCode: number) {
+  /** ALREADY_EXISTS 时契约把 card_id 放在 error 同级，用来打开已有草稿。 */
+  cardId: string
+
+  constructor(message: string, code: string, statusCode: number, cardId = '') {
     super(message)
     this.name = 'ApiError'
     this.code = code
     this.statusCode = statusCode
+    this.cardId = cardId
   }
 }
 
@@ -69,6 +73,7 @@ export function normalizeCard(input: unknown): Card | null {
     status,
     created_at: readString(input, ['created_at']),
     updated_at: readString(input, ['updated_at']),
+    source_url: readString(input, ['source_url']),
   }
 }
 
@@ -95,8 +100,17 @@ export function readCardList(input: unknown): Card[] {
   })
 }
 
-/** 失败体契约：{ error: { code, message } }。网络失败也收成同一种错误。 */
+function readCardId(body: unknown): string {
+  if (!isRecord(body)) return ''
+  const value = body.card_id
+  if (typeof value === 'string' && value.trim()) return value.trim()
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  return ''
+}
+
+/** 失败体契约：{ error: { code, message } }。ALREADY_EXISTS 还会在同级带 card_id。 */
 export function parseErrorBody(body: unknown, statusCode: number): ApiError {
+  const cardId = readCardId(body)
   if (isRecord(body) && isRecord(body.error)) {
     const code = typeof body.error.code === 'string' && body.error.code.trim()
       ? body.error.code
@@ -104,20 +118,26 @@ export function parseErrorBody(body: unknown, statusCode: number): ApiError {
     const message = typeof body.error.message === 'string' && body.error.message.trim()
       ? body.error.message
       : fallbackMessage(code, statusCode)
-    return new ApiError(message, code, statusCode)
+    return new ApiError(message, code, statusCode, cardId)
   }
 
   if (typeof body === 'string' && body.trim()) {
-    return new ApiError(body.trim().slice(0, 180), `HTTP_${statusCode}`, statusCode)
+    return new ApiError(body.trim().slice(0, 180), `HTTP_${statusCode}`, statusCode, cardId)
   }
 
-  return new ApiError(fallbackMessage('', statusCode), `HTTP_${statusCode}`, statusCode)
+  return new ApiError(fallbackMessage('', statusCode), `HTTP_${statusCode}`, statusCode, cardId)
 }
 
 function fallbackMessage(code: string, statusCode: number): string {
   if (code === 'UNAUTHORIZED' || statusCode === 401) return '管理令牌未被接受'
   if (code === 'NOT_FOUND' || statusCode === 404) return '没有找到这条条目'
+  if (code === 'INVALID_URL') return '这条链接无法识别'
   if (code === 'INVALID_BODY' || statusCode === 400) return '提交的内容不符合要求'
+  if (code === 'ALREADY_EXISTS' || statusCode === 409) return '这篇帖已经入库'
+  if (code === 'RATE_LIMITED' || statusCode === 429) return '取帖太频繁，请稍后再试'
+  if (code === 'FETCH_FAILED') return '贴吧页面没有取下来'
+  if (code === 'CAPTCHA') return '贴吧要求验证，这次没有取到内容'
+  if (code === 'INTERNAL' || statusCode === 500 || statusCode === 502 || statusCode === 503) return '整理服务出错了'
   if (statusCode === 0) return '无法连接整理服务'
   return '请求没有成功'
 }

@@ -1,5 +1,6 @@
 import { readCard, readCardList, ApiError, parseErrorBody } from './model.ts'
 import { readSettings } from './settings.ts'
+import { readCandidates, TIEBA_BY_URL_PATH, TIEBA_IMPORT_PATH, TIEBA_SCAN_PATH, type TiebaCandidate, type TiebaScanInput } from './tieba.ts'
 import type { Card, CardInput, CardPatch, CardStatus } from './types.ts'
 
 interface RequestOptions {
@@ -93,5 +94,45 @@ export async function unpublishCard(id: string): Promise<Card> {
   const body = await request(`/api/admin/cards/${encodeURIComponent(id)}/unpublish`, {
     method: 'POST',
   })
+  return readCard(body)
+}
+
+/** 管理端没有按 id 取单条的接口。ALREADY_EXISTS 只给 card_id，所以翻列表找已有草稿。 */
+export async function getAdminCardById(id: string): Promise<Card> {
+  const target = id.trim()
+  let offset = 0
+  const limit = 50
+  for (let page = 0; page < 20; page += 1) {
+    const items = await listCards({ limit, offset })
+    const found = items.find((card) => card.id === target)
+    if (found) return found
+    if (items.length < limit) break
+    offset += items.length
+  }
+  throw new ApiError(`列表里没有编号 ${target} 的条目`, 'NOT_FOUND', 404)
+}
+
+/** 按帖子链接抓楼主主楼，成功时返回草稿 Card。 */
+export async function ingestTiebaByUrl(url: string): Promise<Card> {
+  const body = await request(TIEBA_BY_URL_PATH, { method: 'POST', body: { url } })
+  return readCard(body)
+}
+
+/** 只拉候选，不入库。吧名留空时不传 bar，让服务端用自己的默认值。 */
+export async function scanTieba(input: TiebaScanInput): Promise<TiebaCandidate[]> {
+  const payload: { bar?: string; since: string; until: string; limit?: number } = {
+    since: input.since,
+    until: input.until,
+  }
+  const bar = input.bar?.trim()
+  if (bar) payload.bar = bar
+  if (input.limit !== undefined) payload.limit = input.limit
+  const body = await request(TIEBA_SCAN_PATH, { method: 'POST', body: payload })
+  return readCandidates(body)
+}
+
+/** 点选候选后再抓帖入库。响应和 by-url 相同。 */
+export async function importTiebaUrl(url: string): Promise<Card> {
+  const body = await request(TIEBA_IMPORT_PATH, { method: 'POST', body: { url } })
   return readCard(body)
 }

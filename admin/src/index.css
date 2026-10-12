@@ -76,6 +76,7 @@ textarea {
 
 .masthead h1,
 .panel h2,
+.editor h3,
 .card-row h3,
 .empty h3 {
   font-family: "Iowan Old Style", Palatino, "Songti SC", "Noto Serif SC", serif;
@@ -268,6 +269,54 @@ textarea {
 .editor-actions {
   justify-content: flex-start;
   flex-wrap: wrap;
+}
+
+.nav {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.scan-form {
+  margin-top: 1.6rem;
+}
+
+.source-line,
+.candidate-url {
+  word-break: break-all;
+}
+
+a {
+  color: #8f3d32;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
+.candidate-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fffdf8;
+}
+
+.candidate-table th,
+.candidate-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.7rem 0.55rem;
+  border-bottom: 1px solid #e4dccb;
+}
+
+.candidate-table th {
+  color: #6e675c;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.score {
+  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 720px) {

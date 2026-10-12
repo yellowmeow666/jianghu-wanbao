@@ -17,18 +17,26 @@ interface CardEditorProps {
   card: Card | null
   onCancel: () => void
   onSaved: (card: Card) => void
+  cancelLabel?: string
+  arrivalNote?: string
 }
 
 type SaveMode = 'draft' | 'review' | 'publish' | 'unpublish'
 
-export function CardEditor({ card, onCancel, onSaved }: CardEditorProps) {
+export function CardEditor({
+  card,
+  onCancel,
+  onSaved,
+  cancelLabel = '返回列表',
+  arrivalNote = '',
+}: CardEditorProps) {
   const [form, setForm] = useState<CardForm>(() => (card ? formFromCard(card) : emptyForm()))
   const [status, setStatus] = useState<CardStatus>(card?.status ?? 'draft')
   const [cardId, setCardId] = useState(card?.id ?? '')
   const [updatedAt, setUpdatedAt] = useState(card?.updated_at ?? '')
   const [issues, setIssues] = useState<string[]>([])
   const [error, setError] = useState<{ message: string; code: string } | null>(null)
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useState(arrivalNote)
   const [busy, setBusy] = useState(false)
 
   function patchForm(partial: Partial<CardForm>) {
@@ -104,8 +112,13 @@ export function CardEditor({ card, onCancel, onSaved }: CardEditorProps) {
             {cardId ? `编号 ${cardId} · ${STATUS_LABEL[status]} · 更新于 ${formatDateTime(updatedAt)}` : '保存后才会向服务端要编号。新建一定是草稿。'}
           </p>
         </div>
-        <button type="button" className="ghost" onClick={onCancel}>返回列表</button>
+        <button type="button" className="ghost" onClick={onCancel}>{cancelLabel}</button>
       </div>
+      {card?.source_url && /^https?:\/\//i.test(card.source_url) ? (
+        <p className="muted source-line">
+          原帖 <a href={card.source_url} target="_blank" rel="noreferrer">{card.source_url}</a>
+        </p>
+      ) : null}
 
       {error ? (
         <div className="banner" role="alert">

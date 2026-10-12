@@ -17,6 +17,8 @@ export interface Card {
   status: CardStatus
   created_at: string
   updated_at: string
+  /** 贴吧入库草稿会带原帖地址。普通录入没有这个字段时为空串。 */
+  source_url: string
 }
 
 /** POST / PATCH 可写字段。创建时不要带 status，服务端固定为 draft。 */
