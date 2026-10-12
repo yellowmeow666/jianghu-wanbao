@@ -25,6 +25,41 @@ jobs:
       - run: npm run test
       - run: npm run build
 
+  backend-mysql:
+    name: backend-mysql
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: jianghu_wanbao
+          MYSQL_USER: jianghu
+          MYSQL_PASSWORD: jianghu
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      DATABASE_URL: mysql://jianghu:jianghu@127.0.0.1:3306/jianghu_wanbao
+      ADMIN_TOKEN: ci-admin-token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run migrate
+      - run: npm run test:mysql
+
   admin:
     name: admin
     runs-on: ubuntu-latest
