@@ -4,6 +4,7 @@ import { ApiError } from './model.ts'
 export const TIEBA_BY_URL_PATH = '/api/admin/ingest/tieba/by-url'
 export const TIEBA_SCAN_PATH = '/api/admin/ingest/tieba/scan'
 export const TIEBA_IMPORT_PATH = '/api/admin/ingest/tieba/import'
+export const TIEBA_COOKIE_PATH = '/api/admin/ingest/tieba/cookie'
 
 export const DEFAULT_TIEBA_BAR = '剑网3'
 
@@ -37,8 +38,7 @@ const INGEST_HINTS: Record<string, string> = {
 
 /**
  * 已知失败码给人话；服务端 message 不同时附在后面。
- * 已实现的 backend 把非法链接记成 INVALID_BODY（400），不是 INVALID_URL。
- * CAPTCHA 是 403，FETCH_FAILED 是 502，ALREADY_EXISTS 是 409 且同级带 card_id。
+ * 非法链接是 INVALID_URL 400。CAPTCHA 是 403，FETCH_FAILED 是 502，ALREADY_EXISTS 是 409 且同级带 card_id。
  */
 export function explainIngestError(error: ApiError): string {
   const urlProblem = error.code === 'INVALID_BODY' && /url/i.test(error.message)
@@ -47,6 +47,59 @@ export function explainIngestError(error: ApiError): string {
   const server = error.message.trim()
   if (!server || server === hint) return hint
   return `${hint} ${server}`
+}
+
+export type TiebaCookieStatus = 'missing' | 'valid' | 'expired'
+export type TiebaCookieFormat = 'netscape' | 'json'
+
+export interface TiebaCookieState {
+  status: TiebaCookieStatus
+  updated_at: string | null
+}
+
+export const COOKIE_STATUS_LABEL: Record<TiebaCookieStatus, string> = {
+  missing: '未配置',
+  valid: '有效',
+  expired: '已过期',
+}
+
+const COOKIE_ERROR_HINTS: Record<string, string> = {
+  INVALID_BODY: '这组 Cookie 没能解析。请核对所选格式后重新粘贴。',
+  INTERNAL: '整理服务没有存下 Cookie，可以重试。',
+  UNAUTHORIZED: '管理令牌未被接受。请核对上方的令牌后再试。',
+  network_error: '连不上整理服务。请确认后端已启动，以及 API 地址。',
+}
+
+/**
+ * Cookie 失败只按错误码给人话。
+ * 不拼接服务端 message，避免把粘贴内容抄进提示。
+ */
+export function explainCookieError(error: ApiError): string {
+  return COOKIE_ERROR_HINTS[error.code] ?? 'Cookie 没有保存成功。'
+}
+
+/** 验证码提示保持不变；只有后端标明过期，或就是验证码，才再拉状态。 */
+export function shouldRefreshCookieStatus(error: ApiError): boolean {
+  return error.code === 'CAPTCHA' || error.cookieMarkedExpired
+}
+
+/** 只留状态和时间。响应里若多带 content，也不放进返回值。 */
+export function readCookieState(input: unknown): TiebaCookieState {
+  if (!isRecord(input)) {
+    throw new ApiError('Cookie 状态无法识别', 'invalid_response', 200)
+  }
+  const status = input.status
+  if (status !== 'missing' && status !== 'valid' && status !== 'expired') {
+    throw new ApiError('Cookie 状态无法识别', 'invalid_response', 200)
+  }
+  const updated = input.updated_at
+  if (updated === null || updated === undefined || updated === '') {
+    return { status, updated_at: null }
+  }
+  if (typeof updated !== 'string') {
+    throw new ApiError('Cookie 状态无法识别', 'invalid_response', 200)
+  }
+  return { status, updated_at: updated.trim() || null }
 }
 
 /** 和 backend normalizeTiebaPostUrl 同一条规则，避免非法链接先打到限流。 */
@@ -148,6 +201,14 @@ export function formatShanghaiOffset(date: Date): string {
 export function formatShanghaiLocalInput(date: Date): string {
   const part = shanghaiParts(date)
   return `${part.year}-${part.month}-${part.day}T${part.hour}:${part.minute}`
+}
+
+/** Cookie 更新时间按上海钟点显示，和取帖时间窗同一时区。 */
+export function formatCookieUpdatedAt(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const part = shanghaiParts(date)
+  return `${part.year}-${part.month}-${part.day} ${part.hour}:${part.minute}`
 }
 
 /**

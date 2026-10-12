@@ -9,12 +9,16 @@ export class ApiError extends Error {
   /** ALREADY_EXISTS 时契约把 card_id 放在 error 同级，用来打开已有草稿。 */
   cardId: string
 
-  constructor(message: string, code: string, statusCode: number, cardId = '') {
+  /** 取帖失败体若标明 cookie 已过期，页面要再拉一次状态，而不是自己猜。 */
+  cookieMarkedExpired: boolean
+
+  constructor(message: string, code: string, statusCode: number, cardId = '', cookieMarkedExpired = false) {
     super(message)
     this.name = 'ApiError'
     this.code = code
     this.statusCode = statusCode
     this.cardId = cardId
+    this.cookieMarkedExpired = cookieMarkedExpired
   }
 }
 
@@ -108,9 +112,17 @@ function readCardId(body: unknown): string {
   return ''
 }
 
+function cookieMarkedExpired(body: unknown): boolean {
+  if (!isRecord(body)) return false
+  if (body.cookie_status === 'expired') return true
+  const code = isRecord(body.error) && typeof body.error.code === 'string' ? body.error.code : ''
+  return /EXPIRED/i.test(code)
+}
+
 /** 失败体契约：{ error: { code, message } }。ALREADY_EXISTS 还会在同级带 card_id。 */
 export function parseErrorBody(body: unknown, statusCode: number): ApiError {
   const cardId = readCardId(body)
+  const expired = cookieMarkedExpired(body)
   if (isRecord(body) && isRecord(body.error)) {
     const code = typeof body.error.code === 'string' && body.error.code.trim()
       ? body.error.code
@@ -118,14 +130,14 @@ export function parseErrorBody(body: unknown, statusCode: number): ApiError {
     const message = typeof body.error.message === 'string' && body.error.message.trim()
       ? body.error.message
       : fallbackMessage(code, statusCode)
-    return new ApiError(message, code, statusCode, cardId)
+    return new ApiError(message, code, statusCode, cardId, expired)
   }
 
   if (typeof body === 'string' && body.trim()) {
-    return new ApiError(body.trim().slice(0, 180), `HTTP_${statusCode}`, statusCode, cardId)
+    return new ApiError(body.trim().slice(0, 180), `HTTP_${statusCode}`, statusCode, cardId, expired)
   }
 
-  return new ApiError(fallbackMessage('', statusCode), `HTTP_${statusCode}`, statusCode, cardId)
+  return new ApiError(fallbackMessage('', statusCode), `HTTP_${statusCode}`, statusCode, cardId, expired)
 }
 
 function fallbackMessage(code: string, statusCode: number): string {

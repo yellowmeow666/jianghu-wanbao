@@ -1,10 +1,10 @@
 import { readCard, readCardList, ApiError, parseErrorBody } from './model.ts'
 import { readSettings } from './settings.ts'
-import { readCandidates, TIEBA_BY_URL_PATH, TIEBA_IMPORT_PATH, TIEBA_SCAN_PATH, type TiebaCandidate, type TiebaScanInput } from './tieba.ts'
+import { readCandidates, readCookieState, TIEBA_BY_URL_PATH, TIEBA_COOKIE_PATH, TIEBA_IMPORT_PATH, TIEBA_SCAN_PATH, type TiebaCandidate, type TiebaCookieFormat, type TiebaCookieState, type TiebaScanInput } from './tieba.ts'
 import type { Card, CardInput, CardPatch, CardStatus } from './types.ts'
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH'
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
   body?: unknown
 }
 
@@ -135,4 +135,22 @@ export async function scanTieba(input: TiebaScanInput): Promise<TiebaCandidate[]
 export async function importTiebaUrl(url: string): Promise<Card> {
   const body = await request(TIEBA_IMPORT_PATH, { method: 'POST', body: { url } })
   return readCard(body)
+}
+
+/** 只返回状态和时间，调用方不要把 Cookie 正文存进浏览器。 */
+export async function getTiebaCookie(): Promise<TiebaCookieState> {
+  const body = await request(TIEBA_COOKIE_PATH)
+  return readCookieState(body)
+}
+
+/** 成功是 204 空响应。content 只出现在这一次请求体里。 */
+export async function putTiebaCookie(input: { format: TiebaCookieFormat; content: string }): Promise<void> {
+  await request(TIEBA_COOKIE_PATH, {
+    method: 'PUT',
+    body: { format: input.format, content: input.content },
+  })
+}
+
+export async function deleteTiebaCookie(): Promise<void> {
+  await request(TIEBA_COOKIE_PATH, { method: 'DELETE' })
 }
