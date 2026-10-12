@@ -2,6 +2,7 @@ import type { Response } from 'express';
 
 export type ErrorCode =
   | 'INVALID_BODY'
+  | 'INVALID_URL'
   | 'UNAUTHORIZED'
   | 'NOT_FOUND'
   | 'ALREADY_EXISTS'
@@ -12,6 +13,7 @@ export type ErrorCode =
 
 const STATUS: Record<ErrorCode, number> = {
   INVALID_BODY: 400,
+  INVALID_URL: 400,
   UNAUTHORIZED: 401,
   NOT_FOUND: 404,
   ALREADY_EXISTS: 409,
@@ -23,6 +25,7 @@ const STATUS: Record<ErrorCode, number> = {
 
 const MESSAGE: Record<ErrorCode, string> = {
   INVALID_BODY: 'invalid request body or query',
+  INVALID_URL: 'invalid tieba post URL',
   UNAUTHORIZED: 'missing or invalid X-Admin-Token',
   NOT_FOUND: 'not found',
   ALREADY_EXISTS: 'resource already exists',

@@ -243,4 +243,32 @@ describe('ingest auth', () => {
       .send({ url: OK_URL });
     expect(res.status).toBe(401);
   });
+
+  it('rejects invalid url with INVALID_URL', async () => {
+    const { app } = build();
+    const res = await admin(request(app).post('/api/admin/ingest/tieba/by-url')).send({
+      url: 'https://example.com/not-tieba',
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_URL');
+  });
+
+
+  it('rejects non-tieba url on import with INVALID_URL', async () => {
+    const { app } = build();
+    const res = await admin(request(app).post('/api/admin/ingest/tieba/import')).send({
+      url: 'https://www.baidu.com/',
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_URL');
+  });
+
+  it('rejects missing url with INVALID_URL not INVALID_BODY', async () => {
+    const { app } = build();
+    const res = await admin(request(app).post('/api/admin/ingest/tieba/by-url')).send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_URL');
+    expect(res.body.error.code).not.toBe('INVALID_BODY');
+  });
+
 });

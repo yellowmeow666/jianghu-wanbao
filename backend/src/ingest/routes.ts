@@ -70,7 +70,7 @@ export function createIngestRouter(opts: IngestRouterOptions): Router {
         url = normalizeTiebaPostUrl(req.body.url);
       } catch (err) {
         if (err instanceof ValidationError) {
-          sendError(res, 'INVALID_BODY', err.message);
+          sendError(res, 'INVALID_URL', err.message);
           return;
         }
         throw err;
