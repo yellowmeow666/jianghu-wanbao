@@ -47,7 +47,10 @@ jobs:
           --health-timeout=5s
           --health-retries=20
     env:
+      # job 跑在 runner 上，不在容器里。service 端口映射到宿主机 3306，
+      # 所以主机名用 127.0.0.1，与本地 .env 一致。服务名 mysql 只有 job 自己也在容器内才解析得到。
       DATABASE_URL: mysql://jianghu:jianghu@127.0.0.1:3306/jianghu_wanbao
+      # CI 占位令牌，不是生产密钥。
       ADMIN_TOKEN: ci-admin-token
     steps:
       - uses: actions/checkout@v4
@@ -74,6 +77,7 @@ jobs:
           cache: npm
           cache-dependency-path: admin/package-lock.json
       - run: npm ci
+      - run: npm run lint
       - run: npm run build
 
   # miniprogram 使用微信开发者工具本地编译，不进入 CI，也不做部署。
