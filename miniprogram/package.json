@@ -1,0 +1,11 @@
+{
+  "name": "jianghu-wanbao-miniprogram",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "miniprogram-api-typings": "^4.1.0",
+    "typescript": "^5.8.3"
+  }
+}

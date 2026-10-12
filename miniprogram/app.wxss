@@ -1,0 +1,12 @@
+page {
+  min-height: 100%;
+  background: #f3efe6;
+  color: #1c1915;
+  font-family: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  font-size: 28rpx;
+  line-height: 1.5;
+}
+
+.serif {
+  font-family: "Songti SC", "Noto Serif SC", "STSong", serif;
+}

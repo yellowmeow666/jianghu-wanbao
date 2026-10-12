@@ -1,0 +1,22 @@
+<view class="page">
+  <text class="kicker">固定说明</text>
+  <text class="title serif">阅读须知</text>
+
+  <view class="block">
+    <text class="p">江湖晚报是民间信息整理，不是机构通报渠道，也不代表任何平台或组织发声。</text>
+    <text class="p">条目来自编辑对公开讨论的摘录，可能滞后、缺漏或有误。时间线只记录整理时看到的节点。</text>
+    <text class="p">「已标记澄清」只说明编辑打过这个标记，不是定论。请回到原始来源自己核对。</text>
+    <text class="p">这里的文字不是通知、公告，也不能代替法律、医疗或投资方面的专业意见。</text>
+  </view>
+
+  <view class="dev">
+    <text class="dev-title">联调地址</text>
+    <text class="dev-desc">只影响本机小程序请求。默认是本机 3000 端口，不会内置已发布样例。</text>
+    <input class="input" value="{{apiBaseUrl}}" bindinput="onInput" placeholder="http://localhost:3000" />
+    <view class="actions">
+      <view class="btn" bindtap="onSave">保存地址</view>
+      <view class="btn btn-ghost" bindtap="onReset">恢复默认</view>
+    </view>
+    <text wx:if="{{hint}}" class="hint">{{hint}}</text>
+  </view>
+</view>

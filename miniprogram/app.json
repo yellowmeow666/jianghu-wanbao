@@ -1,0 +1,16 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/detail/detail",
+    "pages/disclaimer/disclaimer"
+  ],
+  "window": {
+    "navigationBarTitleText": "江湖晚报",
+    "navigationBarBackgroundColor": "#f3efe6",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f3efe6",
+    "backgroundTextStyle": "dark"
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2"
+}

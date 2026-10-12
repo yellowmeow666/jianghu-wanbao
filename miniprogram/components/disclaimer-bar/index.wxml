@@ -1,0 +1,4 @@
+<view class="bar" bindtap="open">
+  <text class="label">阅读须知</text>
+  <text class="hint">民间整理，不是机构通报，信息可能不完整</text>
+</view>
