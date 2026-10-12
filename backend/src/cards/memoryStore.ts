@@ -3,6 +3,8 @@ import type {
   CardStatus,
   CardStore,
   CreateCardInput,
+  IngestLog,
+  IngestLogInput,
   ListAdminOptions,
   PatchCardInput,
   PublicScope,
@@ -12,10 +14,22 @@ import { publishedRange, toIso } from './time.js';
 /** In-memory CardStore for unit/API tests (no MySQL). */
 export function createMemoryStore(): CardStore {
   const cards = new Map<number, Card>();
+  const bySourceUrl = new Map<string, number>();
+  const ingestLogs: IngestLog[] = [];
   let seq = 1;
+  let logSeq = 1;
 
   return {
     async create(input: CreateCardInput, now: Date): Promise<Card> {
+      const source_url =
+        input.source_url === undefined || input.source_url === null || input.source_url === ''
+          ? null
+          : input.source_url;
+      if (source_url && bySourceUrl.has(source_url)) {
+        const err = new Error('source_url already exists') as Error & { code: string };
+        err.code = 'ER_DUP_ENTRY';
+        throw err;
+      }
       const iso = toIso(now);
       const card: Card = {
         id: seq++,
@@ -26,16 +40,24 @@ export function createMemoryStore(): CardStore {
         source_type: input.source_type ?? '',
         clarified: input.clarified ?? false,
         status: 'draft',
+        source_url,
         created_at: iso,
         updated_at: iso,
       };
       cards.set(card.id, card);
+      if (source_url) bySourceUrl.set(source_url, card.id);
       return structuredClone(card);
     },
 
     async getById(id: number): Promise<Card | null> {
       const c = cards.get(id);
       return c ? structuredClone(c) : null;
+    },
+
+    async getBySourceUrl(url: string): Promise<Card | null> {
+      const id = bySourceUrl.get(url);
+      if (id === undefined) return null;
+      return this.getById(id);
     },
 
     async listAdmin(opts: ListAdminOptions): Promise<Card[]> {
@@ -87,6 +109,24 @@ export function createMemoryStore(): CardStore {
       c.status = status;
       c.updated_at = toIso(now);
       return structuredClone(c);
+    },
+
+    async appendIngestLog(input: IngestLogInput, now: Date): Promise<IngestLog> {
+      const log: IngestLog = {
+        id: logSeq++,
+        actor: input.actor,
+        action: input.action,
+        target: input.target,
+        meta: input.meta ? structuredClone(input.meta) : null,
+        created_at: toIso(now),
+      };
+      ingestLogs.push(log);
+      return structuredClone(log);
+    },
+
+    async listIngestLogs(limit = 50): Promise<IngestLog[]> {
+      const n = Math.max(0, Math.trunc(limit));
+      return ingestLogs.slice(-n).reverse().map((l) => structuredClone(l));
     },
   };
 }

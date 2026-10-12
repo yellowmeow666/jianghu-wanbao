@@ -5,6 +5,7 @@
  * - today / week scopes use Asia/Shanghai calendar days
  * - unpublish → archived; re-list via publish
  * - MySQL via DATABASE_URL (mysql://user:pass@host:port/dbname)
+ * - source_url: optional unique ingest key; omitted from C-end toPublic
  */
 
 export type CardStatus = 'draft' | 'pending' | 'published' | 'archived';
@@ -23,11 +24,12 @@ export interface Card {
   source_type: string;
   clarified: boolean;
   status: CardStatus;
+  source_url: string | null;
   created_at: string; // ISO
   updated_at: string; // ISO
 }
 
-/** C-end public shape (status included read-only). */
+/** C-end public shape (status included read-only). source_url is NOT exposed. */
 export interface CardPublic {
   id: number;
   title: string;
@@ -48,6 +50,7 @@ export interface CreateCardInput {
   source_platform?: string;
   source_type?: string;
   clarified?: boolean;
+  source_url?: string | null;
 }
 
 export interface PatchCardInput {
@@ -69,13 +72,32 @@ export interface ListAdminOptions {
 
 export type PublicScope = 'today' | 'week';
 
+export interface IngestLogInput {
+  actor: string;
+  action: string;
+  target: string;
+  meta?: Record<string, unknown> | null;
+}
+
+export interface IngestLog {
+  id: number;
+  actor: string;
+  action: string;
+  target: string;
+  meta: Record<string, unknown> | null;
+  created_at: string;
+}
+
 export interface CardStore {
   create(input: CreateCardInput, now: Date): Promise<Card>;
   getById(id: number): Promise<Card | null>;
+  getBySourceUrl(url: string): Promise<Card | null>;
   listAdmin(opts: ListAdminOptions): Promise<Card[]>;
   listPublished(scope: PublicScope, now: Date): Promise<Card[]>;
   update(id: number, patch: PatchCardInput, now: Date): Promise<Card | null>;
   setStatus(id: number, status: CardStatus, now: Date): Promise<Card | null>;
+  appendIngestLog(input: IngestLogInput, now: Date): Promise<IngestLog>;
+  listIngestLogs(limit?: number): Promise<IngestLog[]>;
 }
 
 export function toPublic(card: Card): CardPublic {

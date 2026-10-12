@@ -17,6 +17,7 @@
     "test:mysql": "vitest run test/mysql.integration.test.ts"
   },
   "dependencies": {
+    "cheerio": "^1.2.0",
     "express": "^5.2.1",
     "mysql2": "^3.14.0"
   },

@@ -6,17 +6,27 @@ import express, {
 import { sendError } from './errors.js';
 import type { CardStore } from './cards/types.js';
 import { createCardsRouter } from './cards/routes.js';
+import { createIngestRouter } from './ingest/routes.js';
+import type { PageFetcher } from './ingest/tieba/fetch.js';
+import type { RateLimiter } from './ingest/rateLimit.js';
 
 export interface CreateAppOptions {
   store: CardStore;
   adminToken?: string;
   now?: () => Date;
+  /** Inject fake fetcher in tests; default real HTTP (not used in CI). */
+  fetchPage?: PageFetcher;
+  ingestRateLimit?: number;
+  rateLimiter?: RateLimiter;
 }
 
 export function createApp({
   store,
   adminToken = process.env.ADMIN_TOKEN ?? '',
   now,
+  fetchPage,
+  ingestRateLimit,
+  rateLimiter,
 }: CreateAppOptions): express.Express {
   const app = express();
   app.disable('x-powered-by');
@@ -46,6 +56,16 @@ export function createApp({
   });
 
   app.use(createCardsRouter({ store, adminToken, now }));
+  app.use(
+    createIngestRouter({
+      store,
+      adminToken,
+      now,
+      fetchPage,
+      rateLimitPerMinute: ingestRateLimit,
+      rateLimiter,
+    }),
+  );
 
   app.use((_req, res) => sendError(res, 'NOT_FOUND'));
 
