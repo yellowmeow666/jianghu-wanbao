@@ -33,3 +33,8 @@ coverage/
 private.*.key
 *.key
 miniprogram/project.private.config.json
+
+# encrypted Tieba cookie store (never commit)
+*.enc
+data/tieba-cookie*
+backend/data/tieba-cookie*

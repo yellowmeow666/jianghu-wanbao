@@ -13,6 +13,9 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    env:
+      # CI 占位密钥，不是生产密钥。当前单测不写 Cookie，留给以后的 Cookie 单测。
+      COOKIE_ENCRYPTION_KEY: ci-cookie-encryption-key-not-for-prod
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,6 +55,8 @@ jobs:
       DATABASE_URL: mysql://jianghu:jianghu@127.0.0.1:3306/jianghu_wanbao
       # CI 占位令牌，不是生产密钥。
       ADMIN_TOKEN: ci-admin-token
+      # CI 占位密钥，不是生产密钥。当前集成测不写 Cookie，留给以后的 Cookie 单测。
+      COOKIE_ENCRYPTION_KEY: ci-cookie-encryption-key-not-for-prod
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

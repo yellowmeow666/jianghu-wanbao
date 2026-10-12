@@ -12,7 +12,7 @@
 ```bash
 cd backend
 cp .env.example .env
-# 编辑 .env：ADMIN_TOKEN、DATABASE_URL、INGEST_RATE_LIMIT
+# 编辑 .env：ADMIN_TOKEN、DATABASE_URL、INGEST_RATE_LIMIT、COOKIE_ENCRYPTION_KEY
 
 # 建库（示例）
 mysql -e "CREATE DATABASE IF NOT EXISTS jianghu_wanbao DEFAULT CHARSET utf8mb4;"
@@ -30,9 +30,15 @@ PORT=3000
 ADMIN_TOKEN=change-me-to-a-long-secret
 DATABASE_URL=mysql://jianghu:jianghu@127.0.0.1:3306/jianghu_wanbao
 INGEST_RATE_LIMIT=10
+# 写入、保存加密贴吧 Cookie 时必填。换成自己的值，不要提交真实密钥。
+COOKIE_ENCRYPTION_KEY=change-me-to-a-long-secret
+# 可选：加密 Cookie 文件路径。不设则用默认路径。
+# TIEBA_COOKIE_STORE=data/tieba-cookie.enc
 ```
 
 > 使用 **`DATABASE_URL`**（`mysql://user:pass@host:port/dbname`），不再拆成 MYSQL_HOST 等五段。
+
+写入并保存加密贴吧 Cookie 必须设置 `COOKIE_ENCRYPTION_KEY`。本地和开发环境自己填写，不要把真实密钥写进仓库或提交 `.env`。`TIEBA_COOKIE_STORE` 可选，用来指定加密 Cookie 文件路径；不设则用默认路径。这些文件匹配 `*.enc`、`data/tieba-cookie*`、`backend/data/tieba-cookie*`，已被 gitignore。CI 不使用真实密钥：`backend` 与 `backend-mysql` 只注入占位 `ci-cookie-encryption-key-not-for-prod`。
 
 ## 脚本
 
@@ -93,7 +99,7 @@ INGEST_RATE_LIMIT=10
 
 ```bash
 # 终端 A
-export ADMIN_TOKEN=dev-token DATABASE_URL=mysql://... INGEST_RATE_LIMIT=10
+export ADMIN_TOKEN=dev-token DATABASE_URL=mysql://... INGEST_RATE_LIMIT=10 COOKIE_ENCRYPTION_KEY=dev-cookie-key
 npm run migrate && npm run dev
 
 # 终端 B
@@ -114,6 +120,7 @@ curl -s -X POST http://localhost:3000/api/admin/ingest/tieba/scan \
 - 时区：Asia/Shanghai
 - unpublish → archived
 - MySQL：`DATABASE_URL`
+- 贴吧 Cookie：写入加密存储需要 `COOKIE_ENCRYPTION_KEY`；文件路径可选 `TIEBA_COOKIE_STORE`
 - 真网贴吧请求 **不进 CI**；单测用 `test/fixtures/tieba/*.html` + 注入 fetcher
 
 ## 测试
