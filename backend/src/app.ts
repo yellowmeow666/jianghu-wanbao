@@ -20,6 +20,25 @@ export function createApp({
 }: CreateAppOptions): express.Express {
   const app = express();
   app.disable('x-powered-by');
+  // Admin Vite (5173) and local tooling; expose admin token header for browsers
+  app.use((req, res, next) => {
+    const origin = req.get('Origin');
+    const allowed = new Set([
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+    ]);
+    if (origin && allowed.has(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Token');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS');
+    }
+    if (req.method === 'OPTIONS') {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
   app.use(express.json({ limit: '256kb' }));
 
   app.get('/health', (_req, res) => {

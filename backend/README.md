@@ -62,7 +62,7 @@ mysql "$DATABASE_URL 解码后的库" < sql/001_cards.sql
   - **week**：含今天往前共 **7** 个自然日（Shanghai）
 - `GET /api/cards/:id` — 非 published → 404
 
-`CardPublic`：`id, title, summary, timeline, source_platform, source_type, clarified, status, updated_at`
+`CardPublic`：`id, title, summary, timeline, source_platform, source_type, clarified, status, created_at, updated_at`
 
 ### 管理端（请求头 `X-Admin-Token` = `ADMIN_TOKEN`）
 

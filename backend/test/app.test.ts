@@ -109,7 +109,8 @@ describe('publish / unpublish / C-end', () => {
     expect(today.body.items.length).toBe(1);
     expect(today.body.items[0].id).toBe(id);
     expect(today.body.items[0].status).toBe('published');
-    expect(today.body.items[0]).not.toHaveProperty('created_at');
+    expect(today.body.items[0]).toHaveProperty('created_at');
+    expect(today.body.items[0]).toHaveProperty('updated_at');
 
     const week = await request(app).get('/api/cards').query({ scope: 'week' });
     expect(week.status).toBe(200);
@@ -119,6 +120,8 @@ describe('publish / unpublish / C-end', () => {
     expect(detail.status).toBe(200);
     expect(detail.body.title).toBe(fullBody.title);
     expect(detail.body.timeline).toEqual(fullBody.timeline);
+    expect(detail.body).toHaveProperty('created_at');
+    expect(detail.body).toHaveProperty('updated_at');
   });
 
   it('non-published detail returns 404 NOT_FOUND', async () => {
@@ -247,5 +250,19 @@ describe('validation & patch', () => {
 
     const today = await request(appNow).get('/api/cards').query({ scope: 'today' });
     expect(today.body.items.length).toBe(0);
+  });
+});
+
+describe('CORS for admin Vite', () => {
+  it('allows localhost:5173 and X-Admin-Token on preflight', async () => {
+    const { app } = build();
+    const res = await request(app)
+      .options('/api/admin/cards')
+      .set('Origin', 'http://localhost:5173')
+      .set('Access-Control-Request-Method', 'GET')
+      .set('Access-Control-Request-Headers', 'X-Admin-Token')
+      .expect(204);
+    expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+    expect(res.headers['access-control-allow-headers']).toMatch(/X-Admin-Token/i);
   });
 });

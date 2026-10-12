@@ -95,8 +95,13 @@ export function createMysqlStore(pool: Pool): CardStore {
         sql += ` WHERE status IN (${placeholders})`;
         params.push(...opts.statuses);
       }
-      sql += ' ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?';
-      params.push(opts.limit, opts.offset);
+      // mysql2 prepared statements reject bound LIMIT/OFFSET; inline validated ints
+      const limit = Math.trunc(Number(opts.limit));
+      const offset = Math.trunc(Number(opts.offset));
+      if (!Number.isFinite(limit) || limit < 0 || !Number.isFinite(offset) || offset < 0) {
+        throw new Error('invalid limit/offset');
+      }
+      sql += ` ORDER BY updated_at DESC, id DESC LIMIT ${limit} OFFSET ${offset}`;
       const [rows] = await pool.execute<CardRow[]>(sql, params);
       return rows.map(rowToCard);
     },

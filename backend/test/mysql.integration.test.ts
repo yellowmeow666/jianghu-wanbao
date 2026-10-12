@@ -71,5 +71,7 @@ describeMysql('mysql integration', () => {
     const detail = await request(app).get(`/api/cards/${id}`).expect(200);
     expect(detail.body.title).toBe('集成测瓜');
     expect(detail.body.status).toBe('published');
+    expect(detail.body).toHaveProperty('created_at');
+    expect(detail.body).toHaveProperty('updated_at');
   });
 });

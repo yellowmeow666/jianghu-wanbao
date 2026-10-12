@@ -37,6 +37,7 @@ export interface CardPublic {
   source_type: string;
   clarified: boolean;
   status: CardStatus;
+  created_at: string;
   updated_at: string;
 }
 
@@ -87,6 +88,7 @@ export function toPublic(card: Card): CardPublic {
     source_type: card.source_type,
     clarified: card.clarified,
     status: card.status,
+    created_at: card.created_at,
     updated_at: card.updated_at,
   };
 }
