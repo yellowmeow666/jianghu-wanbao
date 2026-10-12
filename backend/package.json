@@ -1,0 +1,21 @@
+{
+  "name": "jianghu-wanbao-backend",
+  "version": "0.0.1",
+  "private": true,
+  "description": "江湖晚报 API 占位包（Express + TypeScript + mysql2）。完整接口尚未实现。",
+  "scripts": {
+    "dev": "echo \"[stub] backend dev — export DATABASE_URL and ADMIN_TOKEN; API not implemented\"",
+    "build": "echo \"[stub] backend build — no API sources yet\"",
+    "test": "echo \"[stub] backend test\"",
+    "lint": "echo \"[stub] backend lint\""
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "mysql2": "^3.14.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.15.21",
+    "typescript": "^5.8.3"
+  }
+}

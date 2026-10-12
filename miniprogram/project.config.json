@@ -1,0 +1,17 @@
+{
+  "miniprogramRoot": "./",
+  "projectname": "jianghu-wanbao",
+  "description": "江湖晚报微信小程序（原生 + TypeScript，非 Taro）",
+  "appid": "touristappid",
+  "compileType": "miniprogram",
+  "libVersion": "3.5.5",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "useCompilerPlugins": ["typescript"]
+  },
+  "condition": {}
+}

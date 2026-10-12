@@ -1,0 +1,11 @@
+{
+  "pages": ["pages/index/index"],
+  "window": {
+    "navigationBarTitleText": "江湖晚报",
+    "navigationBarBackgroundColor": "#1a1a1a",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f7f5f2"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}
