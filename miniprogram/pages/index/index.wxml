@@ -1,4 +1,47 @@
 <view class="page">
-  <text class="title">{{title}}</text>
-  <text class="hint">{{hint}}</text>
+  <view class="masthead">
+    <text class="kicker">民间整理</text>
+    <text class="title serif">江湖晚报</text>
+    <text class="sub">只展示已发布条目，不是机构通报</text>
+  </view>
+
+  <view class="tabs">
+    <view class="tab {{scope === 'today' ? 'tab-on' : ''}}" data-scope="today" bindtap="onSwitchScope">今日</view>
+    <view class="tab {{scope === 'week' ? 'tab-on' : ''}}" data-scope="week" bindtap="onSwitchScope">本周</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="state">正在读取已发布条目…</view>
+
+  <view wx:elif="{{errorMessage}}" class="state">
+    <text class="state-title">没有拿到条目</text>
+    <text class="state-desc">{{errorMessage}}</text>
+    <text wx:if="{{errorCode}}" class="state-code">{{errorCode}}</text>
+    <view class="retry" bindtap="onRetry">重试</view>
+  </view>
+
+  <view wx:elif="{{cards.length === 0}}" class="state">
+    <text class="state-title">这里还空着</text>
+    <text class="state-desc">{{emptyText}}</text>
+  </view>
+
+  <view wx:else class="list">
+    <view
+      class="card"
+      wx:for="{{cards}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="onOpenDetail"
+      hover-class="card-hover"
+    >
+      <view class="card-top">
+        <text class="badge {{item.clarified ? 'badge-yes' : 'badge-no'}}">{{item.clarifiedLabel}}</text>
+        <text class="time">更新于 {{item.updatedLabel}}</text>
+      </view>
+      <text class="card-title serif">{{item.title}}</text>
+      <text class="card-summary">{{item.summary}}</text>
+      <text class="card-source">来源：{{item.sourcePlatform}} · {{item.sourceType}}</text>
+    </view>
+  </view>
 </view>
+
+<disclaimer-bar />

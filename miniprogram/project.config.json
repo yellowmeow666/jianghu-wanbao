@@ -1,17 +1,63 @@
 {
-  "miniprogramRoot": "./",
-  "projectname": "jianghu-wanbao",
   "description": "江湖晚报微信小程序（原生 + TypeScript，非 Taro）",
-  "appid": "touristappid",
-  "compileType": "miniprogram",
-  "libVersion": "3.5.5",
+  "miniprogramRoot": "./",
+  "packOptions": {
+    "ignore": [
+      { "type": "folder", "value": "node_modules" },
+      { "type": "suffix", "value": ".test.ts" },
+      { "type": "suffix", "value": ".md" },
+      { "type": "file", "value": "package.json" },
+      { "type": "file", "value": "package-lock.json" },
+      { "type": "file", "value": "tsconfig.json" }
+    ],
+    "include": []
+  },
   "setting": {
-    "urlCheck": true,
+    "urlCheck": false,
     "es6": true,
     "enhance": true,
     "postcss": true,
     "minified": true,
-    "useCompilerPlugins": ["typescript"]
+    "newFeature": false,
+    "coverView": true,
+    "nodeModules": false,
+    "autoAudits": false,
+    "showShadowRootInWxmlPanel": true,
+    "scopeDataCheck": false,
+    "uglifyFileName": false,
+    "checkInvalidKey": true,
+    "checkSiteMap": true,
+    "uploadWithSourceMap": true,
+    "compileHotReLoad": true,
+    "useMultiFrameRuntime": true,
+    "useApiHook": true,
+    "useApiHostProcess": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    },
+    "useIsolateContext": true,
+    "useCompilerPlugins": ["typescript"],
+    "userConfirmedUseCompilerPlugins": ["typescript"],
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerModule": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true
   },
-  "condition": {}
+  "compileType": "miniprogram",
+  "libVersion": "3.5.5",
+  "appid": "touristappid",
+  "projectname": "jianghu-wanbao",
+  "condition": {},
+  "editorSetting": {
+    "tabIndent": "insertSpaces",
+    "tabSize": 2
+  }
 }

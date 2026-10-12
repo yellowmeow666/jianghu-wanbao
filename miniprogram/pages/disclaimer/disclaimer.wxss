@@ -1,0 +1,78 @@
+.page {
+  padding: 36rpx 32rpx 64rpx;
+}
+
+.kicker,
+.title,
+.p,
+.dev-title,
+.dev-desc,
+.hint {
+  display: block;
+}
+
+.kicker {
+  color: #9a3b2f;
+  font-size: 22rpx;
+  letter-spacing: 4rpx;
+}
+
+.title {
+  margin-top: 12rpx;
+  font-size: 52rpx;
+  font-weight: 600;
+}
+
+.block {
+  margin-top: 28rpx;
+}
+
+.p {
+  margin-top: 20rpx;
+  font-size: 30rpx;
+  line-height: 1.75;
+}
+
+.dev {
+  margin-top: 48rpx;
+  padding: 28rpx;
+  background: #fffdf8;
+  border: 1rpx solid #e4dccb;
+}
+
+.dev-title {
+  font-size: 28rpx;
+}
+
+.dev-desc,
+.hint {
+  margin-top: 8rpx;
+  color: #6e675c;
+  font-size: 24rpx;
+}
+
+.input {
+  margin-top: 20rpx;
+  padding: 16rpx 18rpx;
+  background: #f3efe6;
+  border: 1rpx solid #d9d0c0;
+}
+
+.actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.btn {
+  padding: 12rpx 24rpx;
+  background: #1c1915;
+  color: #f3efe6;
+  font-size: 26rpx;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: #1c1915;
+  border: 1rpx solid #1c1915;
+}

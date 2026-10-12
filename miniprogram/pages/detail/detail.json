@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "条目",
+  "usingComponents": {
+    "disclaimer-bar": "/components/disclaimer-bar/index"
+  }
+}

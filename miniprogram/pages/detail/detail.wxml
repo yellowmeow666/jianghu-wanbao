@@ -1,0 +1,53 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="state">正在读取条目…</view>
+
+  <view wx:elif="{{errorMessage}}" class="state">
+    <text class="state-title">没有打开这条条目</text>
+    <text class="state-desc">{{errorMessage}}</text>
+    <text wx:if="{{errorCode}}" class="state-code">{{errorCode}}</text>
+    <view class="retry" bindtap="onRetry">重试</view>
+  </view>
+
+  <block wx:elif="{{card}}">
+    <text class="kicker">已发布条目</text>
+    <text class="title serif">{{card.title}}</text>
+    <text class="summary">{{card.summary}}</text>
+
+    <view class="section">
+      <text class="section-title">时间线</text>
+      <view wx:if="{{card.timeline.length === 0}}" class="muted">时间线还没有节点</view>
+      <view wx:else class="timeline">
+        <view class="node" wx:for="{{card.timeline}}" wx:key="index">
+          <text class="node-time">{{item.atLabel}}</text>
+          <text class="node-text">{{item.text}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section fields">
+      <view class="field">
+        <text class="field-label">来源平台</text>
+        <text class="field-value">{{card.sourcePlatform}}</text>
+      </view>
+      <view class="field">
+        <text class="field-label">来源类型</text>
+        <text class="field-value">{{card.sourceType}}</text>
+      </view>
+      <view class="field">
+        <text class="field-label">是否澄清</text>
+        <text class="field-value">{{card.clarifiedLabel}}</text>
+      </view>
+      <view class="field">
+        <text class="field-label">更新时间</text>
+        <text class="field-value">{{card.updatedLabel}}</text>
+      </view>
+      <view class="field">
+        <text class="field-label">收录时间</text>
+        <text class="field-value">{{card.createdLabel}}</text>
+      </view>
+    </view>
+    <text class="note">澄清标记由编辑填写，只说明整理时见过后续说明。请对照原始来源自己判断。</text>
+  </block>
+</view>
+
+<disclaimer-bar />

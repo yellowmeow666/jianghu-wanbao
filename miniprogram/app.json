@@ -1,11 +1,16 @@
 {
-  "pages": ["pages/index/index"],
+  "pages": [
+    "pages/index/index",
+    "pages/detail/detail",
+    "pages/disclaimer/disclaimer"
+  ],
   "window": {
     "navigationBarTitleText": "江湖晚报",
-    "navigationBarBackgroundColor": "#1a1a1a",
-    "navigationBarTextStyle": "white",
-    "backgroundColor": "#f7f5f2"
+    "navigationBarBackgroundColor": "#f3efe6",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f3efe6",
+    "backgroundTextStyle": "dark"
   },
-  "style": "v2",
-  "sitemapLocation": "sitemap.json"
+  "sitemapLocation": "sitemap.json",
+  "style": "v2"
 }

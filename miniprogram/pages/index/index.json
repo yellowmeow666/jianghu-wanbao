@@ -1,3 +1,8 @@
 {
-  "navigationBarTitleText": "江湖晚报"
+  "navigationBarTitleText": "江湖晚报",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark",
+  "usingComponents": {
+    "disclaimer-bar": "/components/disclaimer-bar/index"
+  }
 }
