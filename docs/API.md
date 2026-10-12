@@ -6,6 +6,7 @@
 
 - 数据库连接：环境变量 `DATABASE_URL`，格式 `mysql://user:password@host:port/database`。
 - 管理端鉴权：请求头 `X-Admin-Token` 必须等于环境变量 `ADMIN_TOKEN`。
+- 贴吧 Cookie 加密：环境变量 `COOKIE_ENCRYPTION_KEY` 为 32 字节密钥，用 64 位 hex 或 base64 表示。未配置或格式不对时，Cookie 写入接口返回 `500` `INTERNAL`（服务端打明确日志，日志不含 Cookie 明文）；`GET` 状态按 `missing` 处理。密文默认落在 backend 的 `data/tieba-cookie.enc`，可用 `TIEBA_COOKIE_STORE` 改路径。
 - C 端接口不鉴权。
 - 时间字段使用 ISO 8601 字符串。C 端「今日 / 本周」按 `Asia/Shanghai` 的自然日解释 `updated_at`。
 - JSON 字段名使用 snake_case，与下表一致。
@@ -33,7 +34,7 @@
 | `ALREADY_EXISTS` | 409 | 同一 `source_url` 已入库；响应另含 `card_id` |
 | `RATE_LIMITED` | 429 | 同 token 采集超过 `INGEST_RATE_LIMIT`（默认 10/分钟） |
 | `FETCH_FAILED` | 502 | 抓取超时或非预期 HTTP 状态 |
-| `INTERNAL` | 500 | 未预期的服务端错误 |
+| `INTERNAL` | 500 | 未预期的服务端错误。Cookie 写入时若 `COOKIE_ENCRYPTION_KEY` 缺失或不是 32 字节 hex/base64，也用此码 |
 
 ## Card
 
@@ -188,3 +189,49 @@
 - `bar` 默认 `剑网3`；`limit` 默认 `50`。
 - 成功 `200`：`{ "candidates": [{ "title", "posted_at", "url", "score", "reasons": [] }] }`。
 - **不写 cards**。缺字段/坏时间窗仍用 `INVALID_BODY`。
+
+`by-url` / `import` / `scan` 每次写 `ingest_logs`。`meta` 含 `used_cookie`（boolean）：这次抓取是否附带了处于 `valid` 的 Cookie。去重短路（`ALREADY_EXISTS`，尚未抓取）为 `false`。`meta` 与响应都不得出现 Cookie 明文或片段。
+
+未配置 Cookie（`missing`）时，这三条的请求头、状态码和落库行为与未接 Cookie 时相同（验收 E1）。
+
+### `PUT /api/admin/ingest/tieba/cookie`
+
+管理员粘贴 Cookie。需要 `X-Admin-Token`。**不计入** `INGEST_RATE_LIMIT`。
+
+请求：
+
+```json
+{ "format": "netscape", "content": "# Netscape HTTP Cookie File\n..." }
+```
+
+- `format`：`netscape`（cookies.txt，制表符分隔；`#HttpOnly_` 前缀保留）或 `json`（`[{ "name", "value", "domain?", "path?" }]`）。
+- 只保存对 `tieba.baidu.com` / `.baidu.com`（父域 `baidu.com`）有用的条目。没有可用条目、格式不对或内容无法解析：`400`，`INVALID_BODY`。
+- 成功 `204`，响应体为空，不回显明文。
+- 明文经 AES-256-GCM 加密后落盘。`COOKIE_ENCRYPTION_KEY` 缺失或非法：`500`，`INTERNAL`，服务端日志说明密钥未配置，且不写文件。
+
+### `GET /api/admin/ingest/tieba/cookie`
+
+响应**只有**这两个字段：
+
+```json
+{ "status": "missing", "updated_at": null }
+```
+
+| status | 含义 |
+| --- | --- |
+| `missing` | 未配置，或没有可用密钥（即使磁盘上有旧文件） |
+| `valid` | 已加密保存，且尚未标为失效 |
+| `expired` | 使用后仍撞上验证码/登录墙，已标失效（或等价的显式失效） |
+
+`updated_at` 为上次成功 `PUT` 的 ISO 8601 时间；`missing` 时为 `null`。标成 `expired` 不改这个时间。响应不得含 Cookie 明文、片段或其它字段（验收 E3）。
+
+### `DELETE /api/admin/ingest/tieba/cookie`
+
+清空密文存储。成功 `204`，随后 `GET` 为 `missing`。无密钥时与 `PUT` 一样返回 `500` `INTERNAL`，不清文件。
+
+### 抓取时如何使用 Cookie
+
+- 状态为 `valid` 时，`by-url` / `import` / `scan` 的贴吧 HTTP 请求附带 `Cookie` 头。
+- 仍然遇到验证码/登录墙：`403` `CAPTCHA`，并把状态标为 `expired`。成功标失效时，响应在 `error` 同级多一个 `cookie_status: "expired"`（没有明文）。之后的请求不再附带，直到重新 `PUT`。
+- `expired` 与 `missing` 都不附带 Cookie。
+- 失败不写半截卡；采集结果仍是 `draft`，永不自动 publish。

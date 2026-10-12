@@ -8,6 +8,7 @@ ALTER TABLE cards
 ALTER TABLE cards
   ADD UNIQUE KEY uk_cards_source_url (source_url);
 
+-- meta JSON may include used_cookie (boolean) for tieba fetches. Never store cookie plaintext.
 CREATE TABLE IF NOT EXISTS ingest_logs (
   id         BIGINT       NOT NULL AUTO_INCREMENT,
   actor      VARCHAR(64)  NOT NULL,

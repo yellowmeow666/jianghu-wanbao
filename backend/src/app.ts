@@ -18,6 +18,13 @@ export interface CreateAppOptions {
   fetchPage?: PageFetcher;
   ingestRateLimit?: number;
   rateLimiter?: RateLimiter;
+  /** 覆盖贴吧 Cookie 密文路径；默认 backend/data/tieba-cookie.enc 或 TIEBA_COOKIE_STORE。 */
+  cookieStorePath?: string;
+  /**
+   * undefined 读 COOKIE_ENCRYPTION_KEY；null 强制当作未配置。
+   * 测试传入独立密钥，避免碰到开发机环境变量。
+   */
+  cookieEncryptionKey?: string | null;
 }
 
 export function createApp({
@@ -27,6 +34,8 @@ export function createApp({
   fetchPage,
   ingestRateLimit,
   rateLimiter,
+  cookieStorePath,
+  cookieEncryptionKey,
 }: CreateAppOptions): express.Express {
   const app = express();
   app.disable('x-powered-by');
@@ -41,7 +50,7 @@ export function createApp({
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Vary', 'Origin');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Token');
-      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     }
     if (req.method === 'OPTIONS') {
       res.status(204).end();
@@ -64,6 +73,8 @@ export function createApp({
       fetchPage,
       rateLimitPerMinute: ingestRateLimit,
       rateLimiter,
+      cookieStorePath,
+      cookieEncryptionKey,
     }),
   );
 

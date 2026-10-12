@@ -12,7 +12,7 @@
 ```bash
 cd backend
 cp .env.example .env
-# 编辑 .env：ADMIN_TOKEN、DATABASE_URL、INGEST_RATE_LIMIT、COOKIE_ENCRYPTION_KEY
+# 编辑 .env：ADMIN_TOKEN、DATABASE_URL、INGEST_RATE_LIMIT、COOKIE_ENCRYPTION_KEY（32 字节 hex 或 base64）
 
 # 建库（示例）
 mysql -e "CREATE DATABASE IF NOT EXISTS jianghu_wanbao DEFAULT CHARSET utf8mb4;"
@@ -30,9 +30,9 @@ PORT=3000
 ADMIN_TOKEN=change-me-to-a-long-secret
 DATABASE_URL=mysql://jianghu:jianghu@127.0.0.1:3306/jianghu_wanbao
 INGEST_RATE_LIMIT=10
-# 写入、保存加密贴吧 Cookie 时必填。换成自己的值，不要提交真实密钥。
+# 32 字节：64 位 hex 或 base64。占位不能直接用；不配或格式不对则写入 500，GET 为 missing。
 COOKIE_ENCRYPTION_KEY=change-me-to-a-long-secret
-# 可选：加密 Cookie 文件路径。不设则用默认路径。
+# 可选。不设则用 backend/data/tieba-cookie.enc；相对路径相对进程 cwd。
 # TIEBA_COOKIE_STORE=data/tieba-cookie.enc
 ```
 
@@ -56,7 +56,7 @@ COOKIE_ENCRYPTION_KEY=change-me-to-a-long-secret
 
 错误一律：`{ error: { code, message } }`。
 
-`code` ∈ `INVALID_BODY` \| `UNAUTHORIZED` \| `NOT_FOUND` \| `ALREADY_EXISTS` \| `RATE_LIMITED` \| `FETCH_FAILED` \| `CAPTCHA` \| `INTERNAL`。
+`code` ∈ `INVALID_BODY` \| `INVALID_URL` \| `UNAUTHORIZED` \| `NOT_FOUND` \| `ALREADY_EXISTS` \| `RATE_LIMITED` \| `FETCH_FAILED` \| `CAPTCHA` \| `INTERNAL`。
 
 `ALREADY_EXISTS`（贴吧去重）额外带顶层 `card_id`：`{ error: { code, message }, card_id }`。
 
@@ -94,12 +94,24 @@ COOKIE_ENCRYPTION_KEY=change-me-to-a-long-secret
 - 去重：`source_url` 已存在 → `409 ALREADY_EXISTS` + `card_id`。
 - 抓取错误：`FETCH_FAILED`（超时/非 200）、`CAPTCHA`（验证码/登录墙）、`NOT_FOUND`（删帖/404）。
 - **解析失败不写 cards**（禁止半截成功）。
+- `ingest_logs.meta.used_cookie`：本次抓取是否附带了 `valid` Cookie。
+
+#### 贴吧 Cookie（可选）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| PUT | `/api/admin/ingest/tieba/cookie` | `{ format: netscape\|json, content }`。成功 `204`，不明文。解析失败 `400 INVALID_BODY` |
+| GET | `/api/admin/ingest/tieba/cookie` | 只返回 `{ status: missing\|valid\|expired, updated_at }` |
+| DELETE | `/api/admin/ingest/tieba/cookie` | `204`，清空后状态为 `missing` |
+
+密钥 `COOKIE_ENCRYPTION_KEY` 缺失时，PUT/DELETE 为 `500 INTERNAL`（日志写明密钥未配置），GET 为 `missing`。密文用 AES-256-GCM，默认 `data/tieba-cookie.enc`。`valid` 时 by-url/import/scan 会带上 Cookie；仍遇验证码墙则 `403 CAPTCHA` 并把状态标为 `expired`。这三条以外的采集行为在未配置 Cookie 时不变。Cookie 接口不占 `INGEST_RATE_LIMIT`。
 
 #### 本地手动冒烟（需能访问贴吧公网）
 
 ```bash
 # 终端 A
-export ADMIN_TOKEN=dev-token DATABASE_URL=mysql://... INGEST_RATE_LIMIT=10 COOKIE_ENCRYPTION_KEY=dev-cookie-key
+export ADMIN_TOKEN=dev-token DATABASE_URL=mysql://... INGEST_RATE_LIMIT=10
+export COOKIE_ENCRYPTION_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
 npm run migrate && npm run dev
 
 # 终端 B

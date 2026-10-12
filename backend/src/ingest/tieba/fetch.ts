@@ -9,7 +9,12 @@ export interface FetchResult {
   url: string;
 }
 
-export type PageFetcher = (url: string) => Promise<FetchResult>;
+/** 可选请求头。采集在已配置 Cookie 时只多传 Cookie，测试里的假 fetcher 可以忽略第二个参数。 */
+export interface FetchInit {
+  headers?: Record<string, string>;
+}
+
+export type PageFetcher = (url: string, init?: FetchInit) => Promise<FetchResult>;
 
 export class IngestFetchError extends Error {
   readonly code: ErrorCode;
@@ -67,19 +72,26 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 
 /** Real network fetcher (not used in CI/unit tests). */
 export function createHttpFetcher(timeoutMs = DEFAULT_TIMEOUT_MS): PageFetcher {
-  return async (url: string): Promise<FetchResult> => {
+  return async (url: string, init?: FetchInit): Promise<FetchResult> => {
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), timeoutMs);
     try {
+      // 默认头始终带上；仅当调用方传入 Cookie 时才附加，未配置时请求与以前一致。
+      const headers: Record<string, string> = {
+        'User-Agent': TIEBA_UA,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+      };
+      if (init?.headers) {
+        for (const [name, value] of Object.entries(init.headers)) {
+          if (value) headers[name] = value;
+        }
+      }
       const res = await fetch(url, {
         method: 'GET',
         redirect: 'follow',
         signal: ac.signal,
-        headers: {
-          'User-Agent': TIEBA_UA,
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-        },
+        headers,
       });
       const body = await res.text();
       return { status: res.status, body, url: res.url || url };
@@ -92,10 +104,14 @@ export function createHttpFetcher(timeoutMs = DEFAULT_TIMEOUT_MS): PageFetcher {
   };
 }
 
-export async function fetchTiebaPage(fetcher: PageFetcher, url: string): Promise<FetchResult> {
+export async function fetchTiebaPage(
+  fetcher: PageFetcher,
+  url: string,
+  init?: FetchInit,
+): Promise<FetchResult> {
   let result: FetchResult;
   try {
-    result = await fetcher(url);
+    result = await fetcher(url, init);
   } catch (err) {
     if (err instanceof IngestFetchError) throw err;
     const msg = err instanceof Error ? err.message : String(err);

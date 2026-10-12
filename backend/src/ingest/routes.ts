@@ -3,9 +3,16 @@ import { sendError, type ErrorCode } from '../errors.js';
 import { ValidationError } from '../cards/validate.js';
 import type { CardStore } from '../cards/types.js';
 import { classifySourceType, score818, truncateSummary } from './score.js';
-import { createHttpFetcher, fetchTiebaPage, IngestFetchError, type PageFetcher } from './tieba/fetch.js';
+import { createHttpFetcher, fetchTiebaPage, IngestFetchError, type FetchInit, type PageFetcher } from './tieba/fetch.js';
 import { parsePostedAt, parseTiebaListHtml, parseTiebaPostHtml } from './tieba/parser.js';
 import { normalizeTiebaPostUrl, tiebaListUrl } from './tieba/url.js';
+import { CookieParseError, parseCookieContent } from './tieba/cookieParse.js';
+import {
+  CookieKeyError,
+  createTiebaCookieStore,
+  resolveTiebaCookieStorePath,
+  type TiebaCookieStore,
+} from './tieba/cookieStore.js';
 import {
   createRateLimiter,
   parseIngestRateLimit,
@@ -28,6 +35,10 @@ export interface IngestRouterOptions {
   fetchPage?: PageFetcher;
   rateLimitPerMinute?: number;
   rateLimiter?: RateLimiter;
+  cookieStorePath?: string;
+  cookieEncryptionKey?: string | null;
+  /** 测试可注入；缺省为加密文件存储。 */
+  cookieStore?: TiebaCookieStore;
 }
 
 export function createIngestRouter(opts: IngestRouterOptions): Router {
@@ -38,7 +49,33 @@ export function createIngestRouter(opts: IngestRouterOptions): Router {
     opts.rateLimitPerMinute ??
     parseIngestRateLimit(process.env.INGEST_RATE_LIMIT, 10);
   const limiter = opts.rateLimiter ?? createRateLimiter(limit);
+  const cookies =
+    opts.cookieStore ??
+    createTiebaCookieStore({
+      filePath: opts.cookieStorePath ?? resolveTiebaCookieStorePath(),
+      encryptionKey: opts.cookieEncryptionKey,
+    });
   const router = Router();
+
+  /** 仅 valid 的 Cookie 会附到贴吧请求上；missing / expired 与未配置密钥时不带头。 */
+  async function cookieForFetch(): Promise<{ used: boolean; init?: FetchInit }> {
+    const header = await cookies.headerForRequest();
+    if (!header) return { used: false };
+    return { used: true, init: { headers: { Cookie: header } } };
+  }
+
+  async function noteCaptcha(usedCookie: boolean): Promise<boolean> {
+    if (!usedCookie) return false;
+    try {
+      // 带着 Cookie 仍然撞上验证码墙：标 expired，下次不再附带，直到管理员重新粘贴。
+      await cookies.markExpired();
+      return true;
+    } catch {
+      // 标记失败不能改变本次 403；Cookie 仍保持 valid，下次请求还会再试。
+      console.error('[tieba-cookie] failed to mark cookie expired after captcha');
+      return false;
+    }
+  }
 
   const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
     const token = req.get('X-Admin-Token');
@@ -60,6 +97,7 @@ export function createIngestRouter(opts: IngestRouterOptions): Router {
   };
 
   async function ingestByUrl(req: Request, res: Response, next: NextFunction, action: string) {
+    let usedCookie = false;
     try {
       if (!isPlainObject(req.body)) {
         sendError(res, 'INVALID_BODY', 'body must be a JSON object');
@@ -83,7 +121,7 @@ export function createIngestRouter(opts: IngestRouterOptions): Router {
             actor: actorFromToken(req.get('X-Admin-Token') ?? ''),
             action,
             target: url,
-            meta: { result: 'ALREADY_EXISTS', card_id: existing.id },
+            meta: { result: 'ALREADY_EXISTS', card_id: existing.id, used_cookie: false },
           },
           now(),
         );
@@ -94,7 +132,9 @@ export function createIngestRouter(opts: IngestRouterOptions): Router {
       }
 
       // Fetch + parse BEFORE any card write (no partial success)
-      const page = await fetchTiebaPage(fetchPage, url);
+      const cookieUse = await cookieForFetch();
+      usedCookie = cookieUse.used;
+      const page = await fetchTiebaPage(fetchPage, url, cookieUse.init);
       const parsed = parseTiebaPostHtml(page.body, url);
       const summary = truncateSummary(parsed.body, 200);
       const source_type = classifySourceType(`${parsed.title}\n${parsed.body}`);
@@ -133,7 +173,7 @@ export function createIngestRouter(opts: IngestRouterOptions): Router {
           actor: actorFromToken(req.get('X-Admin-Token') ?? ''),
           action,
           target: url,
-          meta: { result: 'ok', card_id: card.id, author: parsed.author },
+          meta: { result: 'ok', card_id: card.id, author: parsed.author, used_cookie: usedCookie },
         },
         now(),
       );
@@ -141,7 +181,14 @@ export function createIngestRouter(opts: IngestRouterOptions): Router {
       res.status(201).json(card);
     } catch (err) {
       if (err instanceof IngestFetchError) {
-        sendError(res, err.code as ErrorCode, err.message);
+        const markedExpired = err.code === 'CAPTCHA' ? await noteCaptcha(usedCookie) : false;
+        sendError(
+          res,
+          err.code as ErrorCode,
+          err.message,
+          // 管理端用同级 cookie_status 决定是否刷新状态条；不含 Cookie 明文。
+          markedExpired ? { cookie_status: 'expired' } : undefined,
+        );
         try {
           const rawUrl =
             isPlainObject(req.body) && typeof req.body.url === 'string' ? req.body.url : '';
@@ -150,7 +197,7 @@ export function createIngestRouter(opts: IngestRouterOptions): Router {
               actor: actorFromToken(req.get('X-Admin-Token') ?? ''),
               action,
               target: rawUrl.slice(0, 512),
-              meta: { result: err.code, message: err.message },
+              meta: { result: err.code, message: err.message, used_cookie: usedCookie },
             },
             now(),
           );
@@ -186,6 +233,7 @@ export function createIngestRouter(opts: IngestRouterOptions): Router {
     requireAdmin,
     enforceRate,
     async (req, res, next) => {
+      let usedCookie = false;
       try {
         if (!isPlainObject(req.body)) {
           sendError(res, 'INVALID_BODY', 'body must be a JSON object');
@@ -226,7 +274,9 @@ export function createIngestRouter(opts: IngestRouterOptions): Router {
         }
 
         const listUrl = tiebaListUrl(bar);
-        const page = await fetchTiebaPage(fetchPage, listUrl);
+        const cookieUse = await cookieForFetch();
+        usedCookie = cookieUse.used;
+        const page = await fetchTiebaPage(fetchPage, listUrl, cookieUse.init);
         const items = parseTiebaListHtml(page.body);
 
         const candidates: Array<{
@@ -267,6 +317,7 @@ export function createIngestRouter(opts: IngestRouterOptions): Router {
               since: req.body.since,
               until: req.body.until,
               candidate_count: candidates.length,
+              used_cookie: usedCookie,
             },
           },
           now(),
@@ -275,7 +326,13 @@ export function createIngestRouter(opts: IngestRouterOptions): Router {
         res.json({ candidates });
       } catch (err) {
         if (err instanceof IngestFetchError) {
-          sendError(res, err.code as ErrorCode, err.message);
+          const markedExpired = err.code === 'CAPTCHA' ? await noteCaptcha(usedCookie) : false;
+          sendError(
+            res,
+            err.code as ErrorCode,
+            err.message,
+            markedExpired ? { cookie_status: 'expired' } : undefined,
+          );
           try {
             const bar =
               isPlainObject(req.body) && typeof req.body.bar === 'string' ? req.body.bar : '剑网3';
@@ -284,7 +341,7 @@ export function createIngestRouter(opts: IngestRouterOptions): Router {
                 actor: actorFromToken(req.get('X-Admin-Token') ?? ''),
                 action: 'scan',
                 target: String(bar).slice(0, 512),
-                meta: { result: err.code, message: err.message },
+                meta: { result: err.code, message: err.message, used_cookie: usedCookie },
               },
               now(),
             );
@@ -297,6 +354,67 @@ export function createIngestRouter(opts: IngestRouterOptions): Router {
       }
     },
   );
+
+  // Cookie 管理不占采集限流配额：只鉴权，不抓贴吧。
+  router.put('/api/admin/ingest/tieba/cookie', requireAdmin, async (req, res, next) => {
+    try {
+      if (!isPlainObject(req.body)) {
+        sendError(res, 'INVALID_BODY', 'body must be a JSON object');
+        return;
+      }
+      const format = req.body.format;
+      const content = req.body.content;
+      if (format !== 'netscape' && format !== 'json') {
+        sendError(res, 'INVALID_BODY', 'format must be netscape or json');
+        return;
+      }
+      if (typeof content !== 'string') {
+        sendError(res, 'INVALID_BODY', 'content must be a string');
+        return;
+      }
+      let header: string;
+      try {
+        header = parseCookieContent(format, content);
+      } catch (err) {
+        if (err instanceof CookieParseError) {
+          sendError(res, 'INVALID_BODY', err.message);
+          return;
+        }
+        throw err;
+      }
+      await cookies.save(header, now());
+      // 204 且无响应体，避免把 Cookie 明文带回客户端。
+      res.status(204).end();
+    } catch (err) {
+      if (err instanceof CookieKeyError) {
+        sendError(res, 'INTERNAL', 'cookie encryption key is not configured');
+        return;
+      }
+      next(err);
+    }
+  });
+
+  router.get('/api/admin/ingest/tieba/cookie', requireAdmin, async (_req, res, next) => {
+    try {
+      const view = await cookies.status();
+      res.json({ status: view.status, updated_at: view.updated_at });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete('/api/admin/ingest/tieba/cookie', requireAdmin, async (_req, res, next) => {
+    try {
+      await cookies.clear();
+      res.status(204).end();
+    } catch (err) {
+      if (err instanceof CookieKeyError) {
+        sendError(res, 'INTERNAL', 'cookie encryption key is not configured');
+        return;
+      }
+      next(err);
+    }
+  });
 
   return router;
 }

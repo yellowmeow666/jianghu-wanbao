@@ -43,6 +43,8 @@ function build(opts: {
     fetchPage: opts.fetchPage,
     ingestRateLimit: opts.ingestRateLimit,
     rateLimiter: opts.rateLimiter,
+    // 未配置 Cookie：不读环境里的密钥，行为与接入 Cookie 之前一致。
+    cookieEncryptionKey: null,
   });
   return { app, store };
 }
@@ -76,6 +78,7 @@ describe('POST /api/admin/ingest/tieba/by-url', () => {
     const logs = await store.listIngestLogs();
     expect(logs[0].action).toBe('by-url');
     expect(logs[0].target).toBe(OK_URL);
+    expect(logs[0].meta).toMatchObject({ used_cookie: false });
   });
 
   it('ALREADY_EXISTS with card_id on duplicate source_url', async () => {
@@ -126,6 +129,8 @@ describe('POST /api/admin/ingest/tieba/by-url', () => {
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('CAPTCHA');
     expect((await store.listAdmin({ limit: 10, offset: 0 })).length).toBe(0);
+    const logs = await store.listIngestLogs();
+    expect(logs[0].meta).toMatchObject({ result: 'CAPTCHA', used_cookie: false });
   });
 
   it('NOT_FOUND for deleted post', async () => {
@@ -203,6 +208,7 @@ describe('POST /api/admin/ingest/tieba/scan', () => {
     expect((await store.listAdmin({ limit: 50, offset: 0 })).length).toBe(0);
     const logs = await store.listIngestLogs();
     expect(logs[0].action).toBe('scan');
+    expect(logs[0].meta).toMatchObject({ used_cookie: false });
   });
 });
 
